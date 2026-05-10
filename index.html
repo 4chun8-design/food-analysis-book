@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Analysis and Instrumentation - 2nd Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2d5016 0%, #5fa832 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.95;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .controls {
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        button {
+            background: #2d5016;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5fa832;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        #pageNum {
+            width: 50px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        #pageCount {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .viewer-wrapper {
+            display: flex;
+            justify-content: center;
+            background: #f5f5f5;
+            min-height: 600px;
+            padding: 20px;
+        }
+        
+        #pdf-canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .footer {
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Food Analysis and Instrumentation</h1>
+        <p>2nd Edition | By Dr. Gregory I. Onwuka</p>
+    </div>
+    
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <button id="prevBtn" onclick="previousPage()">← Previous</button>
+                <button id="nextBtn" onclick="nextPage()">Next →</button>
+            </div>
+            <div class="control-group">
+                <label for="pageNum">Page:</label>
+                <input type="number" id="pageNum" value="1" min="1" onchange="gotoPage()">
+                <span id="pageCount">of 507</span>
+            </div>
+        </div>
+        
+        <div class="viewer-wrapper">
+            <div id="loader" class="loading">Loading PDF...</div>
+            <canvas id="pdf-canvas" style="display:none;"></canvas>
+        </div>
+        
+        <div class="footer">
+            <p>📖 Digital Edition | View only - copying, downloading, and printing are disabled</p>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Set up PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        // PDF file path - CHANGE THIS TO YOUR PDF FILENAME
+        const pdfUrl = 'Food-Analysis-Instrumentation.pdf'; // Make sure filename matches!
+        
+        let pdfDoc = null;
+        let currentPage = 1;
+        
+        // Load PDF
+        async function loadPdf() {
+            try {
+                pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+                document.getElementById('pageCount').textContent = `of ${pdfDoc.numPages}`;
+                document.getElementById('pageNum').max = pdfDoc.numPages;
+                document.getElementById('loader').style.display = 'none';
+                renderPage(currentPage);
+            } catch (error) {
+                document.getElementById('loader').innerHTML = '<p style="color: red;">Error loading PDF. Please check the file path.</p>';
+                console.error('PDF Error:', error);
+            }
+        }
+        
+        // Render a page
+        async function renderPage(pageNum) {
+            const page = await pdfDoc.getPage(pageNum);
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const viewport = page.getViewport({ scale: 1.5 });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.style.display = 'block';
+            
+            const renderTask = page.render({
+                canvasContext: ctx,
+                viewport: viewport
+            });
+            
+            await renderTask.promise;
+            
+            // Update page input
+            document.getElementById('pageNum').value = pageNum;
+            updateButtons();
+        }
+        
+        // Navigation
+        function nextPage() {
+            if (currentPage < pdfDoc.numPages) {
+                currentPage++;
+                renderPage(currentPage);
+            }
+        }
+        
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage(currentPage);
+            }
+        }
+        
+        function gotoPage() {
+            const pageNum = parseInt(document.getElementById('pageNum').value);
+            if (pageNum >= 1 && pageNum <= pdfDoc.numPages) {
+                currentPage = pageNum;
+                renderPage(currentPage);
+            }
+        }
+        
+        function updateButtons() {
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === pdfDoc.numPages;
+        }
+        
+        // Disable right-click, copy, print
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('copy', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') e.preventDefault();
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') e.preventDefault();
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') e.preventDefault();
+        });
+        
+        // Load on startup
+        loadPdf();
+    </script>
+</body>
+</html>
